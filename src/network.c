@@ -12,6 +12,7 @@
 #include "event.h"
 #include "config.h"
 #include "util.h"
+#include "subprocess.h"
 #include "uavmp/uavmp.h"
 
 int an_make_nonblock(int fd);
@@ -40,6 +41,7 @@ int an_make_listen_fd(char *addr, int port) {
     return sockfd;
 }
 
+//Deprecated
 void an_make_connection() {
     int i = craft_cnt, sockfd, res;
     struct sockaddr_in sin;
@@ -86,7 +88,7 @@ int an_make_frame(uint8_t type, int code, craft_addr c, uint8_t *src, unsigned i
         uint8_t *dst, unsigned int dst_size) {
     int i = 0;
     uint8_t *bp;
-    if(sizeof(uavmp_t) + src_size < (unsigned int)dst_size) {
+    if(sizeof(uavmp_t) + src_size > (unsigned int)dst_size) {
         return -1;
     }
     uavmp_t *up = (uavmp_t *)dst;
@@ -96,7 +98,7 @@ int an_make_frame(uint8_t type, int code, craft_addr c, uint8_t *src, unsigned i
 	up->code = code;
 	up->crc8 = 0x0;
 	up->idt = c.addr;
-    up->seq = c.send_seq;
+    up->seq = htonl(c.send_seq);
     i += sizeof(uavmp_t);
     bp = dst + i;
     memcpy(bp, src, src_size);
@@ -107,7 +109,7 @@ int an_broadcast_msg(uint8_t type, uint8_t code, uint8_t *src, int size) {
     uint8_t send_buf[1450];
     struct sockaddr_in peer;
     int i, len;
-    peer.sin_port = port;
+    peer.sin_port = htons(port);
     peer.sin_family = AF_INET;
     for(i=0; i<craft_cnt; ++i) {
         peer.sin_addr.s_addr = crafts[i].addr;
@@ -116,6 +118,7 @@ int an_broadcast_msg(uint8_t type, uint8_t code, uint8_t *src, int size) {
             printf("Package too large\n");
             return -1;
         }
+        printf("Send packet to %s:%d length: %d\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), len);
         sendto(listenfd, send_buf, len, 0, (struct sockaddr *)&peer, sizeof(peer));
     }
     return 0;
@@ -124,9 +127,10 @@ int an_broadcast_msg(uint8_t type, uint8_t code, uint8_t *src, int size) {
 
 int recv_handler(struct epoll_event e){
     uint8_t buf[1500];
-    int len, addr_len, i;
+    int len, addr_len, i, fd;
     struct sockaddr_in from;
     event *p;
+    uavmp_t *up;
     printf("Handling %d... \n", e.data.fd);
     if(! e.events & EPOLLIN) {
         return -1;
@@ -144,11 +148,9 @@ int recv_handler(struct epoll_event e){
         printf("Read error: %s\n", strerror(errno));
         return errno;
     }
-    for(i = 0; i<craft_cnt; ++i){
-        from.sin_port = htons(port);
-        from.sin_addr.s_addr = crafts[i].addr;
-         sendto(p->fd, buf, len, 0, (struct sockaddr *) &from, sizeof(from));
-    }
-    //sendto(p->fd, buf, len, 0, (struct sockaddr *) &from, sizeof(from));
+    up = (uavmp_t *)buf;
+    fd = protos[up->type].fifo_fd;
+    write(fd, buf + sizeof(uavmp_t), len - sizeof(uavmp_t));
+    //TODO: add ack packet.  sendto(p->fd, buf, len, 0, (struct sockaddr *) &from, sizeof(from));
     return 0;
 }

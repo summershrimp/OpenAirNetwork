@@ -58,11 +58,12 @@ int an_make_fifos(){
 
 int fifo_handler(struct epoll_event e) {
     uint8_t buffer[1400];
-    int i, size;
+    int size;
+    event *ep;
     proto_type *ptp;
-    ptp = (proto_type *)e.data.ptr;
-
-    size = read(e.data.fd, buffer, sizeof(buffer));
+    ep = (event *)e.data.ptr;
+    ptp = (proto_type *)ep->ptr;
+    size = read(ep->fd, buffer, sizeof(buffer));
     if(size == -1) {
         printf("Read from %s error: %s\n", ptp->fifo_dir, strerror(errno));
         return 0;

@@ -6,6 +6,7 @@ proto_type protos[128];
 
 
 int port = 4555;
+int is_master = 1;
 int craft_cnt = 1;
 int event_once = 100;
 

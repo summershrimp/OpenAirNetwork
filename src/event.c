@@ -97,14 +97,12 @@ int an_start_event_loop() {
     event *e;
     for( ; ; ) {
         event_cnt = epoll_wait(epoll_fd, events, event_once, -1);
-        printf("Get event: %d\n", event_cnt);
         if(event_cnt == -1) {
             printf("Wait for epoll events failed: %s\n", strerror(errno));
             exit(errno);
         }
         for(i=0; i<event_cnt; ++i) {
             e = (event *)events[i].data.ptr;
-            printf("Event %d fd: %d\n", i, events[i].data.fd);
             e->handler(events[i]);
         }
     }
@@ -113,8 +111,7 @@ int an_start_event_loop() {
 int an_add_event(event *e, int events) {
     struct epoll_event ev;
     ev.events = events;
-    ev.data.fd = e->fd;
-    ev.data.ptr = (void *)e; 
+    ev.data.ptr = (void *)e;
     if(epoll_ctl(epoll_fd, EPOLL_CTL_ADD, e->fd, &ev) == -1) {
         printf("Add fd to epoll failed: %s\n", strerror(errno));
         exit(errno);
