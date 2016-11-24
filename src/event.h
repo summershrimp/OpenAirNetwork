@@ -9,7 +9,7 @@ typedef int (*event_handler) (struct epoll_event ev);
 typedef struct {
     int fd;
     event_handler handler;
-    craft_addr craft;
+    void* ptr;
 } event;
 
 int an_start_event_loop();

@@ -12,6 +12,7 @@ typedef struct {
 } craft_addr;
 
 int an_start_server(char *addr, int port);
+int an_broadcast_msg(uint8_t type, uint8_t code, uint8_t *src, int size);
 
 #endif
 

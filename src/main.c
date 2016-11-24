@@ -6,11 +6,16 @@
 #include "main.h"
 #include "config.h"
 #include "network.h"
+#include "event.h"
+#include "subprocess.h"
+
 
 int main(void) {
     an_load_config();
     //an_make_daemon();
     printf("Finish loading config.\n");
+    an_init_event_loop(2000);
+    an_make_fifos();
     an_start_server("0.0.0.0", port);
     return 0;
 }
