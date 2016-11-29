@@ -10,72 +10,8 @@
 
 #include "event.h"
 #include "config.h"
+#include "arq.h"
 
-/*
-#define HASH_BASE 131
-
-typedef struct _event_hashitem {
-    event e;
-    _event_hashitem *next;
-} event_hashitem;
-
-event_hashitem *event_hashmap[HASH_BASE];
-
-event* event_map_get(int fd) {
-    event_hashitem *p = event_hashmap[fd % HASH_BASE];
-    while(p) {
-        if(p->e.fd == fd) {
-            return &(p->e);
-        }
-        p = p->next;
-    }
-    return NULL;
-}
-
-
-int event_map_put(event e) {
-    event *p;
-    event_hashitem *it;
-    int hash;
-    p = event_map_get(e.fd);
-    if(p != NULL) {
-        return 1;
-    }
-    it = (event_hashitem *)malloc(sizeof(event_hashitem));
-    if(!it) {
-        printf("Allocate memory failed: %s", strerror(errno));
-        exit(-1);
-    }
-    it->e = e;
-    hash = e.fd % HASH_BASE;
-    it->next = event_hashmap[hash];
-    event_hashmap[hash] = it;
-    return 0;
-}
-
-int event_map_remove(int fd) {
-    int hash = fd % HASH_BASE;
-    event_hashitem *last, *p = event_hashmap[hash];
-    last = NULL;
-    if(p == NULL) {
-        return 1;
-    }
-    while(p->next) {
-        if(p->e.fd == fd) {
-            if(last == NULL) {
-                event_hashmap[hash] = p->next;
-            } else {
-               last->next = p->next;
-            }
-            free(p);
-            return 0;
-        }
-        last = p;
-        p = p->next;
-    }
-    return 1;
-}
-*/
 int epoll_fd = -1;
 
 int an_init_event_loop(int max_fd) {
@@ -96,7 +32,7 @@ int an_start_event_loop() {
     int event_cnt, i;
     event *e;
     for( ; ; ) {
-        event_cnt = epoll_wait(epoll_fd, events, event_once, -1);
+        event_cnt = epoll_wait(epoll_fd, events, event_once, 10);
         if(event_cnt == -1) {
             printf("Wait for epoll events failed: %s\n", strerror(errno));
             exit(errno);
@@ -105,6 +41,7 @@ int an_start_event_loop() {
             e = (event *)events[i].data.ptr;
             e->handler(events[i]);
         }
+        an_arq_retry();
     }
 }
 

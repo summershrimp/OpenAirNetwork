@@ -3,6 +3,8 @@
 
 #define MAX_CRAFT 10
 
+#include <map>
+
 extern int event_once;
 
 #include "network.h"
@@ -16,6 +18,8 @@ extern int craft_cnt;
 extern int is_master;
 
 extern proto_type protos[128];
+
+extern std::map<in_addr_t, craft_addr*> addr_map;
 
 int an_load_config();
 #endif

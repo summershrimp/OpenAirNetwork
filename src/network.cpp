@@ -14,9 +14,11 @@
 #include "util.h"
 #include "subprocess.h"
 #include "uavmp/uavmp.h"
-
+using namespace std;
 int an_make_nonblock(int fd);
 int recv_handler(struct epoll_event e);
+inline int handle_ack(sockaddr_in addr, uint8_t *buf, int size);
+inline int send_ack(sockaddr_in addr, uint8_t *buf, int size);
 
 int listenfd;
 
@@ -41,40 +43,8 @@ int an_make_listen_fd(char *addr, int port) {
     return sockfd;
 }
 
-//Deprecated
-void an_make_connection() {
-    int i = craft_cnt, sockfd, res;
-    struct sockaddr_in sin;
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(port);
-    event *p = NULL;
-    while(i) {
-        sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-        if(sockfd == -1) {
-            printf("Create socket error: %s\n", strerror(errno));
-            exit(errno);
-        }
-        sin.sin_addr.s_addr = crafts[i].addr;
-        res = connect(sockfd, (struct sockaddr *) &sin, sizeof(sin));
-        if(res == -1){
-            printf("Create connection to %s:%d error: %s\n", inet_ntoa(sin.sin_addr), port, strerror(errno));
-            crafts[i].fd = -1;
-        } else {
-            crafts[i].fd = sockfd;
-            an_make_nonblock(sockfd);
-            p = (event *)malloc(sizeof(event));
-            p->fd = sockfd;
-            p->ptr = (void*)&crafts[i];
-            p->handler = recv_handler;
-            an_add_event(p, EPOLLIN | EPOLLET);
-        }
-        --i;
-    }
-}
-
 int an_start_server(char *addr, int port){
     event *p;
-    //an_make_connection();
     listenfd = an_make_listen_fd(addr, port);
     p = (event *)malloc(sizeof(event));
     p->fd = listenfd;
@@ -120,6 +90,10 @@ int an_broadcast_msg(uint8_t type, uint8_t code, uint8_t *src, int size) {
         }
         printf("Send packet to %s:%d length: %d\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), len);
         sendto(listenfd, send_buf, len, 0, (struct sockaddr *)&peer, sizeof(peer));
+        arq_t wait_d;
+        wait_d.size = len;
+        memcpy(wait_d.data, send_buf, len);
+        crafts[i].wait_queue.push(wait_d);
     }
     return 0;
 }
@@ -127,7 +101,8 @@ int an_broadcast_msg(uint8_t type, uint8_t code, uint8_t *src, int size) {
 
 int recv_handler(struct epoll_event e){
     uint8_t buf[1500];
-    int len, addr_len, i, fd;
+    int len, fd;
+    socklen_t addr_len;
     struct sockaddr_in from;
     event *p;
     uavmp_t *up;
@@ -149,8 +124,63 @@ int recv_handler(struct epoll_event e){
         return errno;
     }
     up = (uavmp_t *)buf;
-    fd = protos[up->type].fifo_fd;
-    write(fd, buf + sizeof(uavmp_t), len - sizeof(uavmp_t));
-    //TODO: add ack packet.  sendto(p->fd, buf, len, 0, (struct sockaddr *) &from, sizeof(from));
+    if(up->type & 0x80) {
+        return handle_ack(from, buf, len);
+    }
+    if(protos[up->type].id == up->type) {
+        fd = protos[up->type].fifo_fd;
+        write(fd, buf + sizeof(uavmp_t), len - sizeof(uavmp_t));
+    }
+    send_ack(from, buf, len);
+    if(is_master) {
+       an_broadcast_msg(up->type, up->code, buf + sizeof(uavmp_t), len - sizeof(uavmp_t)); 
+    }
+    return 0;
+}
+
+inline int handle_ack(sockaddr_in from, uint8_t *buf, int size) {
+	uavmp_t *mp = (uavmp_t *) buf;
+	if(size < (int) sizeof(uavmp_t)) {
+		return -1;
+    } 
+    if(!addr_map.count(from.sin_addr.s_addr)) {
+        printf("No peers found: %s\n", inet_ntoa(from.sin_addr));
+        return -1;
+    }
+    craft_addr &craft = *addr_map[from.sin_addr.s_addr]; 
+    if(mp->seq == craft.send_seq + 1) {
+        craft.send_seq += 1;
+        craft.wait_queue.pop();
+    }
+    return 0;
+}
+inline int send_ack(sockaddr_in to, uint8_t *buf, int size){
+    uavmp_t *mp = (uavmp_t *)buf;
+    if(size < (int) sizeof(uavmp_t)) {
+        return -1; 
+    }
+    if(!addr_map.count(to.sin_addr.s_addr)) {
+        printf("No peers found: %s\n", inet_ntoa(to.sin_addr));
+        return -1;
+    } 
+    craft_addr &craft = *addr_map[to.sin_addr.s_addr];
+    bool need_send = false;
+    if(mp->seq <= craft.recv_seq) {
+        need_send = true;
+    }
+    if(mp->seq == craft.recv_seq + 1) {
+        craft.recv_seq += 1;
+        need_send = true;
+    }
+    if(!need_send) {
+        return 0;
+    }
+
+    mp->type &= 0x80;
+    int res = sendto(listenfd, buf, sizeof(uavmp_t), 0, (sockaddr *) &to, sizeof(to));
+    if(res == -1) {
+        printf("Send ack packet failed: %s", strerror(errno));
+        return errno;
+    }
     return 0;
 }

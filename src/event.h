@@ -13,7 +13,7 @@ typedef struct {
 } event;
 
 int an_start_event_loop();
-int an_init_event_loop(int max_fd);
+extern int an_init_event_loop(int max_fd);
 int an_remove_event(event *e, int events);
 int an_add_event(event *e, int events);
 #endif

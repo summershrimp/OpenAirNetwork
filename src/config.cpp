@@ -4,6 +4,7 @@
 craft_addr crafts[10];
 proto_type protos[128];
 
+std::map<in_addr_t, craft_addr*> addr_map;
 
 int port = 4555;
 int is_master = 1;
@@ -18,5 +19,13 @@ int an_load_config() {
     protos[0].id = 0;
     strcpy(protos[0].fifo_dir, "/tmp/an_fifo_0");
     protos[0].fifo_fd = -1;
+    return 0;
+}
+
+int an_init_config() {
+    int i;
+    for(i=0; i<craft_cnt; ++i) {
+        addr_map[crafts[i].addr] = crafts + i;
+    }
     return 0;
 }
