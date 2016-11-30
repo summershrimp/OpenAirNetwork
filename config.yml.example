@@ -1,0 +1,12 @@
+port: 5554
+master: true 
+crafts:
+    - 192.168.59.3
+    - 192.168.59.4
+    - 192.168.59.5
+
+protos:
+    - id: 1
+      fifo: /tmp/fifo1
+    - id: 2
+      fifo: /tmp/fifo2
