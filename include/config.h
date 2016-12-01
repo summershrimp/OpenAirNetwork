@@ -22,5 +22,6 @@ extern proto_type protos[128];
 extern std::map<in_addr_t, craft_addr*> addr_map;
 
 int an_load_config();
+int an_init_config();
 #endif
 

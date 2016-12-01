@@ -11,7 +11,7 @@ TARGET = an
 BIN_TARGET = ${DIR_BIN}/${TARGET}
 
 CC = g++
-CFLAGS = -O2 -Wall -I${DIR_INC}
+CFLAGS = -g -Wall -I${DIR_INC}
 LDFLAGS = -lyaml
 
 ${BIN_TARGET}:${OBJ}

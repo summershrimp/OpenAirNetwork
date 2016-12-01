@@ -107,7 +107,7 @@ int recv_handler(struct epoll_event e){
     event *p;
     uavmp_t *up;
     printf("Handling %d... \n", e.data.fd);
-    if(! e.events & EPOLLIN) {
+    if(!(e.events & EPOLLIN)) {
         return -1;
     }
     p = (event*)e.data.ptr;

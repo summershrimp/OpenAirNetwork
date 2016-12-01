@@ -36,7 +36,7 @@ int an_make_fifos(){
                 continue;
             }
         }
-        if(!file_stat.st_mode & S_IFIFO) {
+        if(!(file_stat.st_mode & S_IFIFO)) {
             printf("File %s already exists and not a fifo file.\n", protos[i].fifo_dir);
             continue;
         }

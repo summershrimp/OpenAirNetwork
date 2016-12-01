@@ -30,3 +30,4 @@
 bin/
 obj/
 config.yml
+.ycm_extra_conf.py
