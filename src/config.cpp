@@ -31,7 +31,7 @@ int an_load_config() {
     std::stack<parse_status> st_status;
     char *key = NULL;
     int tmp_id = 0;
-    char *tmp_fifo = NULL;
+    char *tmp_in_fifo = NULL, *tmp_out_fifo = NULL;
 	do {
         yaml_parser_scan(&parser, &token);
         switch(token.type){
@@ -74,16 +74,20 @@ int an_load_config() {
             puts("<b>End block</b>");
             st.pop();
             if(!st_status.empty() && st_status.top() == PROTOS_SUB) {
-                printf("Proto: id=%d, fifo=%s\n", tmp_id, tmp_fifo);
+                printf("Proto: id=%d, fifo=%s,%s\n", tmp_id, tmp_in_fifo, tmp_out_fifo);
                 st_status.pop();
-                if(tmp_id > 127 || tmp_id < 0 || tmp_fifo == NULL) {
+                if(tmp_id > 127 || tmp_id < 0 || tmp_in_fifo == NULL || tmp_out_fifo == NULL) {
                     continue;
                 } 
                 protos[tmp_id].id = tmp_id;
-                strcpy(protos[tmp_id].fifo_dir, tmp_fifo);
-                protos[tmp_id].fifo_fd = -1;
-                free(tmp_fifo);
-                tmp_fifo = NULL;
+                strcpy(protos[tmp_id].fifo_in_dir, tmp_in_fifo);
+                strcpy(protos[tmp_id].fifo_out_dir, tmp_out_fifo);
+                protos[tmp_id].fifo_in_fd = -1;
+                protos[tmp_id].fifo_out_fd = -1;
+                free(tmp_in_fifo);
+                free(tmp_out_fifo);
+                tmp_in_fifo = NULL;
+                tmp_out_fifo = NULL;
             }
             break;
     	/* Data */
@@ -106,8 +110,10 @@ int an_load_config() {
                             printf("Wrong protocal type id: %s\n", tmp_value);
                             exit(-1);
                         }
-                    } else if(!strcmp(key, "fifo")) {
-                        tmp_fifo = strdup(tmp_value);
+                    } else if(!strcmp(key, "fifo_in")) {
+                        tmp_in_fifo = strdup(tmp_value);
+                    } else if(!strcmp(key, "fifo_out")) {
+                        tmp_out_fifo = strdup(tmp_value);
                     }
                 } else {
                     if(!strcmp(key, "port")) {
@@ -166,7 +172,7 @@ int an_load_config() {
 
     for(int i=0; i < 128; ++i) {
         if(protos[i].id == i) {
-            printf("Proto type id=%d, fifo=%s\n", protos[i].id, protos[i].fifo_dir);
+            printf("Proto type id=%d, fifo=%s,%s\n", protos[i].id, protos[i].fifo_in_dir, protos[i].fifo_out_dir);
         }
     }
 

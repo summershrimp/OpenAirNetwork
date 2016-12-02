@@ -110,7 +110,6 @@ int recv_handler(struct epoll_event e){
     struct sockaddr_in from;
     event *p;
     uavmp_t *up;
-    printf("Handling %d... \n", e.data.fd);
     if(!(e.events & EPOLLIN)) {
         return -1;
     }
@@ -134,13 +133,14 @@ int recv_handler(struct epoll_event e){
     }
 #endif
     if(protos[up->type].id == up->type) {
-        fd = protos[up->type].fifo_fd;
+        fd = protos[up->type].fifo_in_fd;
         write(fd, buf + sizeof(uavmp_t), len - sizeof(uavmp_t));
     }
 #ifdef ENABLE_ARQ
     send_ack(from, buf, len);
 #endif    
     if(is_master) {
+       puts("Broadcasting");
        an_broadcast_msg(up->type, up->code, buf + sizeof(uavmp_t), len - sizeof(uavmp_t)); 
     }
     return 0;

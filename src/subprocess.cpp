@@ -19,34 +19,51 @@ event events[128];
 
 int fifo_handler(struct epoll_event e);
 
+int an_create_and_open_fifo(char *dir, int mode) {
+    struct stat file_stat;
+    int fd;
+    if(stat(dir, &file_stat) == -1) {
+        if(errno == ENOENT) {
+            mkfifo(dir, 0660);
+            goto LAB_OPEN;
+        } else {
+            printf("Stat file %s error: %s\n", dir, strerror(errno));
+            return -1;
+        }
+    }
+    if(!(file_stat.st_mode & S_IFIFO)) {
+        printf("File %s already exists and not a fifo file.\n", dir);
+        return -1;
+    }
+LAB_OPEN:
+    fd = open(dir, mode);
+    if(fd == -1) {
+        printf("Open fifo file %s error: %s\n", dir, strerror(errno));
+        return -1;
+    }
+    an_make_nonblock(fd);
+    return fd;
+}
+
 int an_make_fifos(){
     int i, fd;
-    struct stat file_stat;
     event *e;
     for(i=0; i<128; ++i) {
         if(protos[i].id != i) {
             continue;
         }
-        if(stat(protos[i].fifo_dir, &file_stat) == -1) {
-            if(errno == ENOENT) {
-                mkfifo(protos[i].fifo_dir, 0660);
-                --i;
-            } else {
-                printf("Stat file %s error: %s\n", protos[i].fifo_dir, strerror(errno));
-                continue;
-            }
-        }
-        if(!(file_stat.st_mode & S_IFIFO)) {
-            printf("File %s already exists and not a fifo file.\n", protos[i].fifo_dir);
-            continue;
-        }
-        fd = open(protos[i].fifo_dir, O_RDWR|O_NONBLOCK);
+        fd = an_create_and_open_fifo(protos[i].fifo_in_dir, O_RDWR|O_NONBLOCK);
         if(fd == -1) {
-            printf("Open fifo file %s error: %s\n", protos[i].fifo_dir, strerror(errno));
+            puts("IN_DIR");
             continue;
         }
-        an_make_nonblock(fd);
-        protos[i].fifo_fd = fd;
+        protos[i].fifo_in_fd = fd;
+        fd = an_create_and_open_fifo(protos[i].fifo_out_dir, O_RDWR|O_NONBLOCK);
+        if(fd == -1) {
+            puts("OUT_DIR");
+            continue;
+        }
+        protos[i].fifo_out_fd = fd;
         e = events + i;
         e->fd = fd;
         e->ptr = (void*)(protos + i);
@@ -65,7 +82,7 @@ int fifo_handler(struct epoll_event e) {
     ptp = (proto_type *)ep->ptr;
     size = read(ep->fd, buffer, sizeof(buffer));
     if(size == -1) {
-        printf("Read from %s error: %s\n", ptp->fifo_dir, strerror(errno));
+        printf("Read from %s error: %s\n", ptp->fifo_out_dir, strerror(errno));
         return 0;
     }
     an_broadcast_msg(ptp->id, 0, buffer, size);

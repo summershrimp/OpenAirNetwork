@@ -40,8 +40,9 @@ int an_start_event_loop() {
         for(i=0; i<event_cnt; ++i) {
             e = (event *)events[i].data.ptr;
             e->handler(events[i]);
-        }
+        } 
 #ifdef ENABLE_ARQ
+        puts("Resending...");
         an_arq_retry();
 #endif
     }
