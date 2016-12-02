@@ -88,12 +88,16 @@ int an_broadcast_msg(uint8_t type, uint8_t code, uint8_t *src, int size) {
             printf("Package too large\n");
             return -1;
         }
-        printf("Send packet to %s:%d length: %d\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), len);
-        sendto(listenfd, send_buf, len, 0, (struct sockaddr *)&peer, sizeof(peer));
+        if(crafts[i].wait_queue.size() == 0) {
+            printf("Send packet to %s:%d length: %d\n", inet_ntoa(peer.sin_addr), ntohs(peer.sin_port), len);
+            sendto(listenfd, send_buf, len, 0, (struct sockaddr *)&peer, sizeof(peer));
+        }
+#ifdef ENABLE_ARQ
         arq_t wait_d;
         wait_d.size = len;
         memcpy(wait_d.data, send_buf, len);
         crafts[i].wait_queue.push(wait_d);
+#endif
     }
     return 0;
 }
