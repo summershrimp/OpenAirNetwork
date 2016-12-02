@@ -21,10 +21,12 @@ crafts:      #其他节点IP地址
     - 192.168.59.4
     - 192.168.59.5
 
-protos:     #UAVMP协议字段type值与对应的fifo管道路径， 其余服务程序可以通过读写相应的fifo管道进行数据收发。
+protos: 	#UAVMP协议字段type值与对应的fifo管道路径， 其余服务程序可以通过读写相应的fifo管道进行数据收发。
     - id: 1
-      fifo: /tmp/fifo1
+      fifo_in: /tmp/fifo1in         #fifo_in 为服务程序的读管道
+      fifo_out: /tmp/fifo1out       #fifo_out 为服务程序的写管道
     - id: 2
-      fifo: /tmp/fifo2
+      fifo_in: /tmp/fifo2in
+      fifo_out: /tmp/fifo2out
 ```
 
