@@ -41,7 +41,9 @@ int an_start_event_loop() {
             e = (event *)events[i].data.ptr;
             e->handler(events[i]);
         }
+#ifdef ENABLE_ARQ
         an_arq_retry();
+#endif
     }
 }
 

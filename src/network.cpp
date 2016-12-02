@@ -124,14 +124,18 @@ int recv_handler(struct epoll_event e){
         return errno;
     }
     up = (uavmp_t *)buf;
+#ifdef ENABLE_ARQ
     if(up->type & 0x80) {
         return handle_ack(from, buf, len);
     }
+#endif
     if(protos[up->type].id == up->type) {
         fd = protos[up->type].fifo_fd;
         write(fd, buf + sizeof(uavmp_t), len - sizeof(uavmp_t));
     }
+#ifdef ENABLE_ARQ
     send_ack(from, buf, len);
+#endif    
     if(is_master) {
        an_broadcast_msg(up->type, up->code, buf + sizeof(uavmp_t), len - sizeof(uavmp_t)); 
     }
@@ -148,7 +152,7 @@ inline int handle_ack(sockaddr_in from, uint8_t *buf, int size) {
         return -1;
     }
     craft_addr &craft = *addr_map[from.sin_addr.s_addr]; 
-    if(mp->seq == craft.send_seq + 1) {
+    if(ntohl(mp->seq) == craft.send_seq + 1) {
         craft.send_seq += 1;
         craft.wait_queue.pop();
     }
@@ -165,10 +169,10 @@ inline int send_ack(sockaddr_in to, uint8_t *buf, int size){
     } 
     craft_addr &craft = *addr_map[to.sin_addr.s_addr];
     bool need_send = false;
-    if(mp->seq <= craft.recv_seq) {
+    if(ntohl(mp->seq) <= craft.recv_seq) {
         need_send = true;
     }
-    if(mp->seq == craft.recv_seq + 1) {
+    if(ntohl(mp->seq) == craft.recv_seq + 1) {
         craft.recv_seq += 1;
         need_send = true;
     }
